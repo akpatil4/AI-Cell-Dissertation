@@ -572,62 +572,92 @@ elif page == "4 — Evaluation":
                     gt_contours.append(pts)
             st.info(f"{len(gt_contours)} ground-truth contour(s) loaded.")
 
+    # ── auto-detect crop region from GT coordinates ──
+    gt_bbox = None
+    if gt_df is not None and len(gt_contours) > 0:
+        all_x = gt_df["x"].values
+        all_y = gt_df["y"].values
+        # Add a small padding around the GT region to catch contours near edges
+        pad = 20
+        gt_bbox = {
+            "x_min": max(0, int(all_x.min()) - pad),
+            "y_min": max(0, int(all_y.min()) - pad),
+            "x_max": min(w, int(all_x.max()) + pad),
+            "y_max": min(h, int(all_y.max()) + pad),
+        }
+
     # ── predictions ──
     with right:
         st.subheader("Predictions")
-        pred_contours = st.session_state.contours
-        st.info(f"{len(pred_contours)} predicted contour(s) from Page 2 segmentation.")
-
-        # Optional: filter to a crop region (matches notebook behaviour)
-        st.markdown("**Optional: filter predictions to a crop region**")
-        use_crop = st.checkbox("Filter contours to bounding box", value=False)
-        if use_crop:
-            cc1, cc2, cc3, cc4 = st.columns(4)
-            tl_x = cc1.number_input("Top-left X", 0, w, 0)
-            tl_y = cc2.number_input("Top-left Y", 0, h, 0)
-            br_x = cc3.number_input("Bottom-right X", 0, w, w)
-            br_y = cc4.number_input("Bottom-right Y", 0, h, h)
-
-            filtered = []
-            for con in pred_contours:
-                first_pt = con[0] if con.ndim == 2 else con[0][0]
-                if tl_x <= first_pt[0] <= br_x and tl_y <= first_pt[1] <= br_y:
-                    filtered.append(con)
-            pred_contours = filtered
-            st.info(f"{len(pred_contours)} contour(s) after filtering.")
+        pred_contours = list(st.session_state.contours)
+        st.info(f"{len(pred_contours)} total predicted contour(s) from Page 2.")
 
         if not pred_contours:
-            st.warning("Run segmentation on Page 2 first (or adjust crop filter).")
+            st.warning("Run segmentation on Page 2 first.")
 
-    # ── metrics ──
-    if gt_contours and pred_contours:
-        gt_mask   = fill_mask(gt_contours, (h, w))
-        pred_mask = fill_mask(pred_contours, (h, w))
-
-        iou_score  = _iou(pred_mask, gt_mask)
-        dice_score = _dice(pred_mask, gt_mask)
-        precision  = float(np.logical_and(pred_mask, gt_mask).sum() / pred_mask.sum()) if pred_mask.sum() else 0.0
-        recall     = float(np.logical_and(pred_mask, gt_mask).sum() / gt_mask.sum()) if gt_mask.sum() else 0.0
+    # ── filter predictions to GT region & compute metrics ──
+    if gt_contours and pred_contours and gt_bbox is not None:
+        # Filter predicted contours: keep only those whose first point
+        # falls within the GT bounding box (matches notebook Cell 9 logic)
+        filtered_preds = []
+        for con in pred_contours:
+            first_pt = con[0] if con.ndim == 2 else con[0][0]
+            if (gt_bbox["x_min"] <= first_pt[0] <= gt_bbox["x_max"] and
+                gt_bbox["y_min"] <= first_pt[1] <= gt_bbox["y_max"]):
+                filtered_preds.append(con)
 
         st.markdown("---")
-        st.subheader("Metrics")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("IoU",       f"{iou_score:.4f}")
-        m2.metric("Dice",      f"{dice_score:.4f}")
-        m3.metric("Precision", f"{precision:.4f}")
-        m4.metric("Recall",    f"{recall:.4f}")
+        st.subheader("Region Matching")
+        st.info(
+            f"Ground truth covers region: "
+            f"({gt_bbox['x_min']}, {gt_bbox['y_min']}) → ({gt_bbox['x_max']}, {gt_bbox['y_max']})\n\n"
+            f"**{len(filtered_preds)}** of {len(pred_contours)} predicted contours "
+            f"fall within this region."
+        )
 
-        st.subheader("Overlay Comparison")
-        comparison = img_color.copy()
+        if filtered_preds:
+            gt_mask   = fill_mask(gt_contours, (h, w))
+            pred_mask = fill_mask(filtered_preds, (h, w))
 
-        # Ground truth = blue, predictions = green
-        for c in gt_contours:
-            cv2.polylines(comparison, [c.reshape(-1, 1, 2)], True, (0, 80, 255), 2)
-        for c in pred_contours:
-            arr = c.reshape(-1, 1, 2) if c.ndim == 2 else c
-            cv2.drawContours(comparison, [arr], -1, (0, 220, 0), 2)
+            iou_score  = _iou(pred_mask, gt_mask)
+            dice_score = _dice(pred_mask, gt_mask)
+            precision  = float(np.logical_and(pred_mask, gt_mask).sum() / pred_mask.sum()) if pred_mask.sum() else 0.0
+            recall     = float(np.logical_and(pred_mask, gt_mask).sum() / gt_mask.sum()) if gt_mask.sum() else 0.0
 
-        st.image(comparison, caption="Green = Predicted  |  Blue = Ground Truth", use_column_width=True)
+            st.subheader("Metrics")
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("IoU",       f"{iou_score:.4f}")
+            m2.metric("Dice",      f"{dice_score:.4f}")
+            m3.metric("Precision", f"{precision:.4f}")
+            m4.metric("Recall",    f"{recall:.4f}")
+
+            # ── Overlay comparison (cropped to GT region for clarity) ──
+            st.subheader("Overlay Comparison")
+            comparison = img_color.copy()
+
+            # Draw GT bounding box in white
+            cv2.rectangle(
+                comparison,
+                (gt_bbox["x_min"], gt_bbox["y_min"]),
+                (gt_bbox["x_max"], gt_bbox["y_max"]),
+                (255, 255, 255), 2
+            )
+            # Ground truth = blue
+            for c in gt_contours:
+                cv2.polylines(comparison, [c.reshape(-1, 1, 2)], True, (0, 80, 255), 2)
+            # Filtered predictions = green
+            for c in filtered_preds:
+                arr = c.reshape(-1, 1, 2) if c.ndim == 2 else c
+                cv2.drawContours(comparison, [arr], -1, (0, 220, 0), 2)
+
+            # Show full image with box
+            st.image(comparison, caption="White box = evaluation region  |  Green = Predicted  |  Blue = Ground Truth", use_column_width=True)
+
+            # Also show cropped view for detail
+            crop_comp = comparison[gt_bbox["y_min"]:gt_bbox["y_max"], gt_bbox["x_min"]:gt_bbox["x_max"]]
+            st.image(crop_comp, caption="Cropped evaluation region (detail view)", use_column_width=True)
+        else:
+            st.warning("No predicted contours fall within the ground truth region. Check your segmentation results.")
 
     elif gt_contours or pred_contours:
         st.info("Load both ground truth and predictions to compute metrics.")
