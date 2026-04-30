@@ -101,9 +101,9 @@ Evaluated against expert ground-truth annotations obtained from a histologist at
 
 ## References
 
-Upschulte et al. (2022). Contour Proposal Networks for Biomedical Instance Segmentation. Medical Image Analysis.
-Stringer et al. (2021). Cellpose: a generalist algorithm for cellular segmentation. Nature Methods.
-Gonzalez & Woods (2018). Digital Image Processing, 4th ed. Pearson.
+- Upschulte et al. (2022). Contour Proposal Networks for Biomedical Instance Segmentation. Medical Image Analysis.
+- Stringer et al. (2021). Cellpose: a generalist algorithm for cellular segmentation. Nature Methods.
+- Gonzalez & Woods (2018). Digital Image Processing, 4th ed. Pearson.
 - Vincent, L. & Soille, P. (1991). Watersheds in digital spaces: an efficient algorithm based on immersion simulations. IEEE Transactions on Pattern Analysis and Machine Intelligence, 13(6), 583–598.
 - Otsu, N. (1979). A threshold selection method from gray-level histograms. IEEE Transactions on Systems, Man, and Cybernetics, 9(1), 62–66.
 - Kuhl, F.P. & Giardina, C.R. (1982). Elliptic Fourier features of a closed contour. Computer Graphics and Image Processing, 18(3), 236–258.
