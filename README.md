@@ -12,7 +12,7 @@ A classical image processing pipeline for automated cell and tissue segmentation
 ├── watershed_orange.ipynb
 ├── watershed_green.ipynb
 ├── cpn_red.ipynb
-├── cpn_blue.ipynb
+├── cpn.ipynb(blue)
 ├── cpn_orange.ipynb
 ├── cpn_green.ipynb
 ├── cellpose.ipynb
