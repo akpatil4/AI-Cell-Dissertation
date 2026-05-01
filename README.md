@@ -74,12 +74,13 @@ Upload the relevant channel image when prompted.
 
 
 ## Results
+All metrics computed in the dashboard code
 
 Evaluated against expert ground-truth annotations obtained from a histologist at Glenfield Hospital:
 
 | Channel | Method | IoU | Dice | Precision | Recall |
 |---------|--------|-----|------|-----------|--------|
-| Orange (K=50) | Watershed-Fourier | 0.7327 | 0.8458 | 0.8727 | 0.8204 |
+| Orange (K=50) | Watershed-Fourier | 0.7396 | 0.8503 | 0.8737 | 0.8281 |
 | Green (K=70) | Watershed-Fourier | 0.6130 | 0.7600 | 0.8958 | 0.6527 |
 
 ### Structure Counts
